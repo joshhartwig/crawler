@@ -1,0 +1,46 @@
+crawler
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output of the 'go' command
+/bin/
+/out/
+
+# Test binary, created when you run `go test` with the `-c` flag
+*.test
+
+# Dependency directories (vendor folder if you're not using Go modules)
+vendor/
+
+# Go workspace related directories (if using Go workspaces)
+.gowork
+
+# Coverage files and results
+*.cover
+*.cov
+*.out
+
+# Editor & IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# MacOS and other OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Ignore go.sum if you prefer to manage dependencies yourself
+go.sum
+
+# Git hooks directory
+.hooks/
