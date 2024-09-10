@@ -27,26 +27,45 @@ func normalizeURL(inputUrl string) (string, error) {
 
 // returns a slice of unnormalized urls from raw html
 func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
+
 	urls := []string{}
 	body := strings.NewReader(htmlBody)
 	doc, err := html.Parse(body)
 	if err != nil {
-		return []string{}, fmt.Errorf("error %v", err)
+		return urls, fmt.Errorf("couldn't parse base URL %v", err)
 	}
+
+	//TODO: bad html test contains <html body> invalid tag...
+	//TODO: why does an invalid baseurl and returning if we dont have http or https cause the other tests to bomb?
 
 	var f func(*html.Node)
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			for _, r := range n.Attr {
-				// if the 1st char is a / then r.val is a path not full url
+				if len(n.Attr) == 0 {
+					fmt.Println("no attribs")
+					return
+				}
+
+				// if the first char is not a / & rawbaseurl does not end w/ slash
+				if strings.Index(r.Val, "/") != 0 && !strings.HasSuffix(rawBaseURL, "/") {
+
+					// if its a full url append it and return
+					if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
+						urls = append(urls, r.Val)
+					} else {
+						urls = append(urls, fmt.Sprintf("%s/%s", rawBaseURL, r.Val))
+						break
+					}
+
+				}
+
+				// if the 1st char is a / then r.val is a path then append to baseurl and add to slice
 				if strings.Index(r.Val, "/") == 0 {
 					urls = append(urls, fmt.Sprintf("%s%s", rawBaseURL, r.Val))
 					break
 				}
-				// do not append malformed urls
-				if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
-					urls = append(urls, r.Val)
-				}
+
 			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -55,5 +74,9 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 	}
 	f(doc)
 
+	// return nil if we have nothing to return
+	if len(urls) == 0 {
+		return nil, nil
+	}
 	return urls, nil
 }
