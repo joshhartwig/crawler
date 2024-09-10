@@ -35,44 +35,51 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 		return urls, fmt.Errorf("couldn't parse base URL %v", err)
 	}
 
-	//TODO: bad html test contains <html body> invalid tag...
-	//TODO: why does an invalid baseurl and returning if we dont have http or https cause the other tests to bomb?
+	// if this is a valid url
+	if strings.HasPrefix(rawBaseURL, "http://") || strings.HasPrefix(rawBaseURL, "https://") {
+		var f func(*html.Node)
+		f = func(n *html.Node) {
+			if n.Type == html.ElementNode && n.Data == "a" {
+				for _, r := range n.Attr {
+					if len(n.Attr) == 0 {
+						fmt.Println("no attribs")
+						return
+					}
 
-	var f func(*html.Node)
-	f = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, r := range n.Attr {
-				if len(n.Attr) == 0 {
-					fmt.Println("no attribs")
-					return
-				}
+					// if we contain a "\" its not valid url
+					if strings.Contains(r.Val, "\\") {
+						break
+					}
 
-				// if the first char is not a / & rawbaseurl does not end w/ slash
-				if strings.Index(r.Val, "/") != 0 && !strings.HasSuffix(rawBaseURL, "/") {
+					// if the first char is not a / & rawbaseurl does not end w/ slash
+					if strings.Index(r.Val, "/") != 0 && !strings.HasSuffix(rawBaseURL, "/") {
 
-					// if its a full url append it and return
-					if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
-						urls = append(urls, r.Val)
-					} else {
-						urls = append(urls, fmt.Sprintf("%s/%s", rawBaseURL, r.Val))
+						// if its a full url append it and return
+						if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
+							urls = append(urls, r.Val)
+						} else {
+							urls = append(urls, fmt.Sprintf("%s/%s", rawBaseURL, r.Val))
+							break
+						}
+
+					}
+
+					// if the 1st char is a / then r.val is a path then append to baseurl and add to slice
+					if strings.Index(r.Val, "/") == 0 {
+						urls = append(urls, fmt.Sprintf("%s%s", rawBaseURL, r.Val))
 						break
 					}
 
 				}
-
-				// if the 1st char is a / then r.val is a path then append to baseurl and add to slice
-				if strings.Index(r.Val, "/") == 0 {
-					urls = append(urls, fmt.Sprintf("%s%s", rawBaseURL, r.Val))
-					break
-				}
-
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				f(c)
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			f(c)
-		}
+		f(doc)
+	} else {
+		return nil, fmt.Errorf("couldn't parse base URL")
 	}
-	f(doc)
 
 	// return nil if we have nothing to return
 	if len(urls) == 0 {
