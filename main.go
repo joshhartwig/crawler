@@ -80,7 +80,7 @@ func crawlPage(baseURL, currentURL string, pages map[string]int) {
 	}
 
 	// normalize the currentURL
-	fmt.Println("normalizing current url: ", currentURL)
+	fmt.Printf("normalizing current url: %s\n", currentURL)
 	normalizedCurrentURL, err := normalizeURL(currentURL)
 	if err != nil {
 		fmt.Println("error normalizing url", err)
@@ -90,8 +90,10 @@ func crawlPage(baseURL, currentURL string, pages map[string]int) {
 	// check if the normalized current URL is in the map, if so increment if not add it
 	if _, ok := pages[normalizedCurrentURL]; !ok {
 		pages[normalizedCurrentURL] = 1
+		fmt.Printf("No entry in map for: %s setting value to 1\n", normalizedCurrentURL)
 	} else {
 		pages[normalizedCurrentURL]++
+		fmt.Printf("Entry in map found for: %s incrementing value \n", normalizedCurrentURL)
 		return // we already crawled this page
 	}
 
