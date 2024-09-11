@@ -39,6 +39,11 @@ func TestNormalizeURL(t *testing.T) {
 			expected:      "",
 			errorContains: "couldn't parse URL",
 		},
+		{
+			name:     "multiple slashes",
+			inputURL: `https://BLOG.boot.dev/PATH//`,
+			expected: "blog.boot.dev/path",
+		},
 	}
 
 	for i, tc := range tests {

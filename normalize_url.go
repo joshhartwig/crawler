@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,18 +12,15 @@ import (
 
 // returns a whole url if it comes across a relative path url like an href to /home => https://site.com/home
 func normalizeURL(inputUrl string) (string, error) {
-	// lower case everything
 	inputUrl = strings.ToLower(inputUrl)
-
-	parsed, err := url.Parse(inputUrl)
+	parsedURL, err := url.Parse(inputUrl)
 	if err != nil {
-		return "", fmt.Errorf("couldn't parse URL: %w", err)
+		return "", errors.New("couldn't parse URL")
 	}
 
-	path := parsed.Path
-	path = strings.TrimSuffix(path, "/")
+	parsedURL.Path = strings.TrimRight(parsedURL.Path, "/")
 
-	return fmt.Sprintf("%s%s", parsed.Hostname(), path), nil
+	return fmt.Sprintf("%s%s", parsedURL.Hostname(), parsedURL.Path), nil
 }
 
 // returns a slice of unnormalized urls from raw html
@@ -35,16 +33,15 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 		return urls, fmt.Errorf("couldn't parse base URL %v", err)
 	}
 
-	// if this is a valid url
+	// if the rawBaseUrl is a valid url proceed
 	if strings.HasPrefix(rawBaseURL, "http://") || strings.HasPrefix(rawBaseURL, "https://") {
 		var f func(*html.Node)
 		f = func(n *html.Node) {
+			// if we find an 'a' tag
 			if n.Type == html.ElementNode && n.Data == "a" {
+
+				// iterate through attribs
 				for _, r := range n.Attr {
-					if len(n.Attr) == 0 {
-						fmt.Println("no attribs")
-						return
-					}
 
 					// if we contain a "\" its not valid url
 					if strings.Contains(r.Val, "\\") {
