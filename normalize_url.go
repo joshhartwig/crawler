@@ -33,50 +33,45 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 		return urls, fmt.Errorf("couldn't parse base URL %v", err)
 	}
 
-	// if the rawBaseUrl is a valid url proceed
-	if strings.HasPrefix(rawBaseURL, "http://") || strings.HasPrefix(rawBaseURL, "https://") {
-		var f func(*html.Node)
-		f = func(n *html.Node) {
-			// if we find an 'a' tag
-			if n.Type == html.ElementNode && n.Data == "a" {
+	// the rawbaseurl is invalid
+	if !strings.HasPrefix(rawBaseURL, "http://") && !strings.HasPrefix(rawBaseURL, "https://") {
+		fmt.Println("rawbaseurl has neither http or https")
+		return nil, errors.New("couldn't parse base URL")
+	}
 
-				// iterate through attribs
-				for _, r := range n.Attr {
-
-					// if we contain a "\" its not valid url
-					if strings.Contains(r.Val, "\\") {
-						break
-					}
-
-					// if the first char is not a / & rawbaseurl does not end w/ slash
-					if strings.Index(r.Val, "/") != 0 && !strings.HasSuffix(rawBaseURL, "/") {
-
-						// if its a full url append it and return
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, r := range n.Attr {
+				if r.Key == "href" {
+					if strings.HasPrefix(r.Val, "/") { // if the url has /
+						if strings.HasPrefix(rawBaseURL, "/") { // if the base url also has a slash
+							trimmedUrl := strings.TrimSuffix(rawBaseURL, "/")           // trim the baseurl
+							urls = append(urls, fmt.Sprintf("%s%s", trimmedUrl, r.Val)) // append trimmed base to found value
+						} else {
+							urls = append(urls, fmt.Sprintf("%s%s", rawBaseURL, r.Val)) // baseurl does not have / so we can append
+						}
+					} else {
+						// if the url starts with an http or https its a absolute url
 						if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
 							urls = append(urls, r.Val)
 						} else {
+							// found a \ in the url
+							if strings.Contains(r.Val, "\\") {
+								return
+							}
+							// append a slash as this is invalid
 							urls = append(urls, fmt.Sprintf("%s/%s", rawBaseURL, r.Val))
-							break
 						}
-
 					}
-
-					// if the 1st char is a / then r.val is a path then append to baseurl and add to slice
-					if strings.Index(r.Val, "/") == 0 {
-						urls = append(urls, fmt.Sprintf("%s%s", rawBaseURL, r.Val))
-						break
-					}
-
 				}
 			}
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				f(c)
-			}
 		}
-		f(doc)
-	} else {
-		return nil, fmt.Errorf("couldn't parse base URL")
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
 	}
+	f(doc)
 
 	// return nil if we have nothing to return
 	if len(urls) == 0 {
