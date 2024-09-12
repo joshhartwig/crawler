@@ -33,11 +33,14 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 		return urls, fmt.Errorf("couldn't parse base URL %v", err)
 	}
 
-	// the rawbaseurl is invalid
+	// the rawbaseurl can only be http or https
 	if !strings.HasPrefix(rawBaseURL, "http://") && !strings.HasPrefix(rawBaseURL, "https://") {
 		fmt.Println("rawbaseurl has neither http or https")
 		return nil, errors.New("couldn't parse base URL")
 	}
+
+	// remove any trailing /
+	rawBaseURL = strings.TrimSuffix(rawBaseURL, "/")
 
 	var f func(*html.Node)
 	f = func(n *html.Node) {
@@ -45,23 +48,21 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 			for _, r := range n.Attr {
 				if r.Key == "href" {
 					if strings.HasPrefix(r.Val, "/") { // if the url has /
-						if strings.HasPrefix(rawBaseURL, "/") { // if the base url also has a slash
-							trimmedUrl := strings.TrimSuffix(rawBaseURL, "/")           // trim the baseurl
-							urls = append(urls, fmt.Sprintf("%s%s", trimmedUrl, r.Val)) // append trimmed base to found value
-						} else {
-							urls = append(urls, fmt.Sprintf("%s%s", rawBaseURL, r.Val)) // baseurl does not have / so we can append
-						}
+						fullURL := fmt.Sprintf("%s%s", rawBaseURL, r.Val)
+						urls = append(urls, fullURL)
+						return
 					} else {
-						// if the url starts with an http or https its a absolute url
+						// if the url starts with http or https
 						if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
+							fmt.Println("has prefix", r.Val)
 							urls = append(urls, r.Val)
+							return
 						} else {
-							// found a \ in the url
 							if strings.Contains(r.Val, "\\") {
 								return
 							}
-							// append a slash as this is invalid
-							urls = append(urls, fmt.Sprintf("%s/%s", rawBaseURL, r.Val))
+							fullURL := fmt.Sprintf("%s/%s", rawBaseURL, r.Val)
+							urls = append(urls, fullURL)
 						}
 					}
 				}
