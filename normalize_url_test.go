@@ -175,6 +175,34 @@ func TestGetURLsFromHTML(t *testing.T) {
 			expected:      nil,
 			errorContains: "couldn't parse base URL",
 		},
+		{
+			name:     "handle single /",
+			inputURL: `https://blog.boot.dev`,
+			inputBody: `
+<html>
+	<body>
+		<a href="/">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: []string{"https://blog.boot.dev"},
+		},
+		{
+			name:     "overlapping path",
+			inputURL: `https://blog.boot.dev/tags`,
+			inputBody: `
+<html>
+	<body>
+		<a href="/tags/business">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: []string{"https://blog.boot.dev/tags/business"},
+		},
 	}
 
 	for i, tc := range cases {

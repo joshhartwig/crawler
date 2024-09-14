@@ -19,6 +19,8 @@ func normalizeURL(inputUrl string) (string, error) {
 	}
 
 	parsedURL.Path = strings.TrimRight(parsedURL.Path, "/")
+	parsedURL.Fragment = ""
+	parsedURL.RawQuery = ""
 
 	return fmt.Sprintf("%s%s", parsedURL.Hostname(), parsedURL.Path), nil
 }
@@ -35,7 +37,7 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 
 	// the rawbaseurl can only be http or https
 	if !strings.HasPrefix(rawBaseURL, "http://") && !strings.HasPrefix(rawBaseURL, "https://") {
-		fmt.Println("rawbaseurl has neither http or https")
+		fmt.Printf("The rawbaseurl: %s does not start with http:// or https://", rawBaseURL)
 		return nil, errors.New("couldn't parse base URL")
 	}
 
@@ -47,22 +49,47 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			for _, r := range n.Attr {
 				if r.Key == "href" {
-					if strings.HasPrefix(r.Val, "/") { // if the url has /
+
+					// if the url has '/'
+					if strings.HasPrefix(r.Val, "/") {
+
+						// if the url is only a '/'
+						if r.Val == "/" {
+							urls = append(urls, rawBaseURL) // just append the baseurl
+							fmt.Printf("Found / only url skipping \n")
+							return
+						}
+
+						// try and catch the duplication issue https://google.com/tags then appending /tags = google.com/tags/tags
+						if strings.HasSuffix(rawBaseURL+"/", r.Val) {
+							fmt.Printf("Found baseURL: %s with same suffix as URL: %s returning \n", rawBaseURL, r.Val)
+							return
+						}
+
+						// for pass overlapping path test
+						// TODO: pass the overlapping test
+
 						fullURL := fmt.Sprintf("%s%s", rawBaseURL, r.Val)
 						urls = append(urls, fullURL)
+						fmt.Printf("Found relative url path: %s appending to baseurl: %s to form: %s \n", r.Val, rawBaseURL, fullURL)
 						return
 					} else {
 						// if the url starts with http or https
 						if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
-							fmt.Println("has prefix", r.Val)
+							fmt.Printf("Found absolute url: %s baseURL: %s \n", r.Val, rawBaseURL)
 							urls = append(urls, r.Val)
 							return
 						} else {
 							if strings.Contains(r.Val, "\\") {
+								fmt.Printf("Found invalid url: %s baseURL: %s \n", r.Val, rawBaseURL)
 								return
 							}
-							fullURL := fmt.Sprintf("%s/%s", rawBaseURL, r.Val)
-							urls = append(urls, fullURL)
+							// if the baseurl has a suffix that is the same as the r.val /tags
+							if !strings.HasSuffix(rawBaseURL, r.Val) {
+								fullURL := fmt.Sprintf("%s/%s", rawBaseURL, r.Val)
+								fmt.Printf("Found relative url: %s baseURL: %s \n", r.Val, rawBaseURL)
+								urls = append(urls, fullURL)
+							}
 						}
 					}
 				}
