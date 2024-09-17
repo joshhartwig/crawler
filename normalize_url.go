@@ -60,16 +60,32 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 							return
 						}
 
-						// try and catch the duplication issue https://google.com/tags then appending /tags = google.com/tags/tags
-						if strings.HasSuffix(rawBaseURL+"/", r.Val) {
-							fmt.Printf("Found baseURL: %s with same suffix as URL: %s returning \n", rawBaseURL, r.Val)
-							return
+						parsedURL, err := url.Parse(rawBaseURL)
+						if err != nil {
+							fmt.Println(err)
 						}
 
-						// for pass overlapping path test
-						// TODO: pass the overlapping test
+						// Split the path of the base URL and href into slices
+						basePaths := strings.Split(parsedURL.Path, "/") // Split base URL path (e.g., [tags])
+						hrefPaths := strings.Split(r.Val, "/")          // Split href path (e.g., [tags, business])
 
-						fullURL := fmt.Sprintf("%s%s", rawBaseURL, r.Val)
+						finalPath := "" // To construct the final URL path
+
+						// Construct the combined path based on matching base URL paths and href
+						for i := 0; i < len(hrefPaths); i++ {
+							if i > len(basePaths)-1 { // If base URL path has fewer segments, append remaining href
+								finalPath += hrefPaths[i] + "/"
+								continue
+							}
+							// Only add path segments if they match
+							if hrefPaths[i] == basePaths[i] {
+								finalPath += hrefPaths[i] + "/"
+							}
+						}
+
+						// Reconstruct the full URL by combining the scheme, host, and final path
+						fullURL := fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, finalPath)
+						fullURL = strings.TrimSuffix(fullURL, "/") // Remove trailing slash from the final URL
 						urls = append(urls, fullURL)
 						fmt.Printf("Found relative url path: %s appending to baseurl: %s to form: %s \n", r.Val, rawBaseURL, fullURL)
 						return
