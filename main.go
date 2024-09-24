@@ -9,8 +9,6 @@ import (
 	"sync"
 )
 
-//TODO: figure out the channel portion we have the mutex part done
-
 type config struct {
 	pages              map[string]int
 	baseUrl            *url.URL
@@ -39,8 +37,6 @@ func main() {
 
 	fmt.Printf("starting crawl\n%s\n", baseUrl.String())
 
-	pages := map[string]int{}
-
 	cfg := config{
 		pages:              map[string]int{},
 		baseUrl:            baseUrl,
@@ -49,9 +45,12 @@ func main() {
 		wg:                 &sync.WaitGroup{},
 	}
 
-	go cfg.crawlPage(baseUrl.String())
+	cfg.wg.Add(1)
+	go func() {
+		cfg.crawlPage(baseUrl.String())
+	}()
 	cfg.wg.Wait()
-	fmt.Println(pages)
+	fmt.Println(cfg.pages)
 }
 
 // fetch a URL and returns the html content as a string
@@ -82,9 +81,8 @@ func getHTML(rawURL string) (string, error) {
 
 // recursively crawls a page getting urls from page and incrementing if we found existing
 func (cfg *config) crawlPage(currentURL string) {
-	cfg.wg.Add(1)
 	defer cfg.wg.Done()
-
+	fmt.Println("crawlingPage started: ", currentURL)
 	cfg.concurrencyControl <- struct{}{} // write to the channel
 
 	parsedCurrentURL, err := url.Parse(currentURL)
@@ -94,6 +92,7 @@ func (cfg *config) crawlPage(currentURL string) {
 
 	// if we are not on the same hostname return, do not crawl the entire internet only urls from host
 	if cfg.baseUrl.Host != parsedCurrentURL.Host {
+		fmt.Println("we are not the same host baseurlhost: ", cfg.baseUrl.Host, " parsedcurrneturlhost: ", parsedCurrentURL.Host)
 		return
 	}
 
@@ -104,9 +103,11 @@ func (cfg *config) crawlPage(currentURL string) {
 		return
 	}
 
+	// if this is the first time we have visited this page, get the html and start again
 	if cfg.addPageVisit(normalizedCurrentURL) {
 		// we have not crawled the page, so fetch html
 		html, err := getHTML(currentURL)
+		fmt.Println("fetching html for: ", currentURL)
 		if err != nil {
 			fmt.Println("error getting html", err)
 			return
@@ -122,10 +123,8 @@ func (cfg *config) crawlPage(currentURL string) {
 
 		// iterate through the urls and crawl
 		for _, url := range urls {
-			<-cfg.concurrencyControl // pull off the struct from the channel?
 			cfg.crawlPage(url)
 		}
-
 	}
 
 	<-cfg.concurrencyControl
@@ -134,12 +133,18 @@ func (cfg *config) crawlPage(currentURL string) {
 
 func (c *config) addPageVisit(normalizedUrl string) (isFirst bool) {
 	c.mu.Lock()
+	// if we did not find the entry in our map, this is the first time we have seen this page
 	if _, ok := c.pages[normalizedUrl]; !ok {
+		isFirst = true
+		fmt.Println("first time we have seen this url :", normalizedUrl, "returning isFirst:", isFirst)
 		c.pages[normalizedUrl] = 1
 		c.mu.Unlock()
 		return isFirst
 	}
+
+	isFirst = false
+	fmt.Println("not first time we have seen this url :", normalizedUrl)
 	c.pages[normalizedUrl]++
 	c.mu.Unlock()
-	return !isFirst
+	return isFirst
 }
