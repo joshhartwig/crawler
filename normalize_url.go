@@ -37,7 +37,7 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 
 	// the rawbaseurl can only be http or https
 	if !strings.HasPrefix(rawBaseURL, "http://") && !strings.HasPrefix(rawBaseURL, "https://") {
-		fmt.Printf("The rawbaseurl: %s does not start with http:// or https://", rawBaseURL)
+		fmt.Printf("url: %s does not start with http:// or https://", rawBaseURL)
 		return nil, errors.New("couldn't parse base URL")
 	}
 
@@ -56,7 +56,6 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 						// if the url is only a '/'
 						if r.Val == "/" {
 							urls = append(urls, rawBaseURL) // just append the baseurl
-							fmt.Printf("Found / only url skipping \n")
 							return
 						}
 
@@ -87,23 +86,23 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 						fullURL := fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, finalPath)
 						fullURL = strings.TrimSuffix(fullURL, "/") // Remove trailing slash from the final URL
 						urls = append(urls, fullURL)
-						fmt.Printf("Found relative url path: %s appending to baseurl: %s to form: %s \n", r.Val, rawBaseURL, fullURL)
+						fmt.Printf("relative url: %s => %s \n", r.Val, fullURL)
 						return
 					} else {
 						// if the url starts with http or https
 						if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
-							fmt.Printf("Found absolute url: %s baseURL: %s \n", r.Val, rawBaseURL)
+							fmt.Printf("absolute url: %s \n", r.Val)
 							urls = append(urls, r.Val)
 							return
 						} else {
 							if strings.Contains(r.Val, "\\") {
-								fmt.Printf("Found invalid url: %s baseURL: %s \n", r.Val, rawBaseURL)
+								fmt.Printf("invalid url: %s \n", r.Val)
 								return
 							}
 							// if the baseurl has a suffix that is the same as the r.val /tags
 							if !strings.HasSuffix(rawBaseURL, r.Val) {
 								fullURL := fmt.Sprintf("%s/%s", rawBaseURL, r.Val)
-								fmt.Printf("Found relative url: %s baseURL: %s \n", r.Val, rawBaseURL)
+								fmt.Printf("relative url: %s => %s \n", r.Val, rawBaseURL)
 								urls = append(urls, fullURL)
 							}
 						}

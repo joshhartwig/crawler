@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	baseUrl, err := url.Parse(os.Args[1]) //os.Args[1]
+	baseUrl, err := url.Parse(os.Args[1])
 	if err != nil {
 		fmt.Println("error parsing url:", os.Args[1])
 	}
@@ -46,10 +46,9 @@ func main() {
 	}
 
 	cfg.wg.Add(1)
-	go func() {
-		cfg.crawlPage(baseUrl.String())
-	}()
+	go cfg.crawlPage(baseUrl.String())
 	cfg.wg.Wait()
+	fmt.Println("Pages Output:")
 	fmt.Println(cfg.pages)
 }
 
@@ -81,8 +80,9 @@ func getHTML(rawURL string) (string, error) {
 
 // recursively crawls a page getting urls from page and incrementing if we found existing
 func (cfg *config) crawlPage(currentURL string) {
+
+	fmt.Println("crawling... : ", currentURL)
 	defer cfg.wg.Done()
-	fmt.Println("crawlingPage started: ", currentURL)
 	cfg.concurrencyControl <- struct{}{} // write to the channel
 
 	parsedCurrentURL, err := url.Parse(currentURL)
@@ -91,6 +91,7 @@ func (cfg *config) crawlPage(currentURL string) {
 	}
 
 	// if we are not on the same hostname return, do not crawl the entire internet only urls from host
+	// ex if host is wagslane.dev vs cnn.com
 	if cfg.baseUrl.Host != parsedCurrentURL.Host {
 		fmt.Println("we are not the same host baseurlhost: ", cfg.baseUrl.Host, " parsedcurrneturlhost: ", parsedCurrentURL.Host)
 		return
@@ -112,7 +113,6 @@ func (cfg *config) crawlPage(currentURL string) {
 			fmt.Println("error getting html", err)
 			return
 		}
-		fmt.Printf("Fetched html with size: %b from %s\n", len([]byte(html)), currentURL)
 
 		// get urls from html
 		urls, err := getURLsFromHTML(html, currentURL)
@@ -123,7 +123,9 @@ func (cfg *config) crawlPage(currentURL string) {
 
 		// iterate through the urls and crawl
 		for _, url := range urls {
-			cfg.crawlPage(url)
+			cfg.wg.Add(1)
+			<-cfg.concurrencyControl
+			go cfg.crawlPage(url)
 		}
 	}
 
