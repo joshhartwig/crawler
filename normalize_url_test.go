@@ -203,6 +203,37 @@ func TestGetURLsFromHTML(t *testing.T) {
 `,
 			expected: []string{"https://blog.boot.dev/tags/business"},
 		},
+		{
+			name:     "deal with filename in url",
+			inputURL: `https://blog.boot.dev/tags`,
+			inputBody: `
+<html>
+	<body>
+		<a href="/tags.xml">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: nil,
+		},
+		{
+			name:     "duplicated urls",
+			inputURL: "https://blog.boot.dev",
+			inputBody: `
+<html>
+	<body>
+		<a href="https://blog.boot.dev">
+			<span>Boot.dev</span>
+		</a>
+		<a href="https://blog.boot.dev">
+			<span>Boot.dev</span>
+		</a>
+	</body>
+</html>
+`,
+			expected: []string{"https://blog.boot.dev"},
+		},
 	}
 
 	for i, tc := range cases {

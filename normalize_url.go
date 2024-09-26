@@ -27,6 +27,7 @@ func normalizeURL(inputUrl string) (string, error) {
 
 // returns a slice of unnormalized urls from raw html
 func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
+	//TODO: impelment a map instead of slice to remove dupes convert to slice prior to return
 
 	urls := []string{}
 	body := strings.NewReader(htmlBody)
@@ -52,6 +53,14 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 
 					// if the url has '/'
 					if strings.HasPrefix(r.Val, "/") {
+
+						// if the path contains /abc.xml find the dot and kill it
+						if len(r.Val) > 4 {
+							idx := len(r.Val) - 4
+							if strings.Index(r.Val, ".") == idx {
+								return
+							}
+						}
 
 						// if the url is only a '/'
 						if r.Val == "/" {
@@ -120,5 +129,19 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
+	urls = removeDuplicates(urls)
 	return urls, nil
+}
+
+func removeDuplicates(s []string) []string {
+	seen := make(map[string]struct{})
+	result := []string{}
+
+	for _, i := range s {
+		if _, exists := seen[i]; !exists {
+			seen[i] = struct{}{}
+			result = append(result, i)
+		}
+	}
+	return result
 }
