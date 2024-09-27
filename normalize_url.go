@@ -27,8 +27,6 @@ func normalizeURL(inputUrl string) (string, error) {
 
 // returns a slice of unnormalized urls from raw html
 func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
-	//TODO: impelment a map instead of slice to remove dupes convert to slice prior to return
-
 	urls := []string{}
 	body := strings.NewReader(htmlBody)
 	doc, err := html.Parse(body)
@@ -38,7 +36,6 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 
 	// the rawbaseurl can only be http or https
 	if !strings.HasPrefix(rawBaseURL, "http://") && !strings.HasPrefix(rawBaseURL, "https://") {
-		fmt.Printf("url: %s does not start with http:// or https://", rawBaseURL)
 		return nil, errors.New("couldn't parse base URL")
 	}
 
@@ -95,23 +92,19 @@ func getURLsFromHTML(htmlBody, rawBaseURL string) ([]string, error) {
 						fullURL := fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, finalPath)
 						fullURL = strings.TrimSuffix(fullURL, "/") // Remove trailing slash from the final URL
 						urls = append(urls, fullURL)
-						fmt.Printf("relative url: %s => %s \n", r.Val, fullURL)
 						return
 					} else {
 						// if the url starts with http or https
 						if strings.HasPrefix(r.Val, "http://") || strings.HasPrefix(r.Val, "https://") {
-							fmt.Printf("absolute url: %s \n", r.Val)
 							urls = append(urls, r.Val)
 							return
 						} else {
 							if strings.Contains(r.Val, "\\") {
-								fmt.Printf("invalid url: %s \n", r.Val)
 								return
 							}
 							// if the baseurl has a suffix that is the same as the r.val /tags
 							if !strings.HasSuffix(rawBaseURL, r.Val) {
 								fullURL := fmt.Sprintf("%s/%s", rawBaseURL, r.Val)
-								fmt.Printf("relative url: %s => %s \n", r.Val, rawBaseURL)
 								urls = append(urls, fullURL)
 							}
 						}

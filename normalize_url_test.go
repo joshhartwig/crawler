@@ -257,3 +257,31 @@ func TestGetURLsFromHTML(t *testing.T) {
 		})
 	}
 }
+
+func TestSortMap(t *testing.T) {
+	test := make(map[string]int)
+	test["http://www.google.com"] = 2
+	test["http://www.cnn.com"] = 5
+	test["http://www.f5.com"] = 33
+	test["http://www.abc.com"] = 1
+	test["http://www.alpha.go"] = 13
+
+	type kv struct {
+		Key   string
+		Value int
+	}
+
+	expected := []kv{
+		{Key: "http://www.f5.com", Value: 33},
+		{Key: "http://www.alpha.go", Value: 13},
+		{Key: "http://www.cnn.com", Value: 5},
+		{Key: "http://www.google.com", Value: 2},
+		{Key: "http://www.abc.com", Value: 1},
+	}
+
+	result := sortMap(test)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("FAIL: expected sorted URLs %v, got %v", expected, result)
+	}
+}
