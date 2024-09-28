@@ -19,7 +19,7 @@ A simple, concurrent web crawler written in Go that recursively crawls a website
 1. Clone this repository:
 
 ```bash
-   git clone https://github.com/yourusername/go-web-crawler.git
+   git clone https://github.com/joshhartwig/crawler.git
 ```
 
 ## Usage
