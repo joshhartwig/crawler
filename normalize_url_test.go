@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -258,30 +259,79 @@ func TestGetURLsFromHTML(t *testing.T) {
 	}
 }
 
+// Test the sortMap method, should return a properly sorted slice of type kv
 func TestSortMap(t *testing.T) {
-	test := make(map[string]int)
-	test["http://www.google.com"] = 2
-	test["http://www.cnn.com"] = 5
-	test["http://www.f5.com"] = 33
-	test["http://www.abc.com"] = 1
-	test["http://www.alpha.go"] = 13
+	t.Run("test sort properly sorts by value first", func(t *testing.T) {
+		test := make(map[string]int)
+		test["google.com"] = 7
+		test["cnn.com"] = 1
+		test["abc.com"] = 2
+		test["ftc.gov"] = 4
+		test["eff.org"] = 6
 
-	type kv struct {
-		Key   string
-		Value int
-	}
+		want := []kv{
+			{key: "google.com", val: 7},
+			{key: "eff.org", val: 6},
+			{key: "ftc.gov", val: 4},
+			{key: "abc.com", val: 2},
+			{key: "cnn.com", val: 1},
+		}
 
-	expected := []kv{
-		{Key: "http://www.f5.com", Value: 33},
-		{Key: "http://www.alpha.go", Value: 13},
-		{Key: "http://www.cnn.com", Value: 5},
-		{Key: "http://www.google.com", Value: 2},
-		{Key: "http://www.abc.com", Value: 1},
-	}
+		got := sortMap(test)
 
-	result := sortMap(test)
+		fail := false
+		for i := range want {
+			if got[i].key != want[i].key && got[i].val != want[i].val {
+				fail = true
+			}
+		}
 
-	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("FAIL: expected sorted URLs %v, got %v", expected, result)
-	}
+		if fail {
+			t.Error("FAIL: expected same answer for both results")
+			fmt.Println("results:", want)
+			fmt.Println("expected:", got)
+		}
+	})
+
+	t.Run("test multiple with same key", func(t *testing.T) {
+		test := make(map[string]int)
+		test["google.com"] = 7
+		test["cnn.com"] = 1
+		test["wired.com"] = 1
+		test["headlights.com"] = 2
+		test["arrival.com"] = 3
+		test["abc.com"] = 2
+		test["ftc.gov"] = 4
+		test["wikipedia.org"] = 9
+		test["eff.org"] = 6
+
+		want := []kv{
+			{key: "wikipedia.org", val: 9},
+			{key: "google.com", val: 7},
+			{key: "eff.org", val: 6},
+			{key: "ftc.gov", val: 4},
+			{key: "arrival.com", val: 3},
+			{key: "abc.com", val: 2},
+			{key: "headlights.com", val: 2},
+			{key: "cnn.com", val: 1},
+			{key: "wired.com", val: 1},
+		}
+
+		got := sortMap(test)
+
+		fail := false
+		for i := range want {
+			if got[i].key != want[i].key && got[i].val != want[i].val {
+				fail = true
+			}
+		}
+
+		if fail {
+			t.Error("FAIL: expected same answer for both results")
+			fmt.Println("results:", want)
+			fmt.Println("expected:", got)
+		}
+
+	})
+
 }

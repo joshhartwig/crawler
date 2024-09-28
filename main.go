@@ -3,12 +3,31 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"sort"
 	"sync"
 )
+
+// helper for sort
+type kv struct {
+	key string
+	val int
+}
+
+type byVal []kv
+
+func (a byVal) Len() int           { return len(a) }
+func (a byVal) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byVal) Less(i, j int) bool { return a[i].val > a[j].val }
+
+type byKey []kv
+
+func (a byKey) Len() int           { return len(a) }
+func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
 
 type config struct {
 	pages              map[string]int
@@ -25,21 +44,26 @@ func main() {
 	maxConcurrency := 1
 	maxPages := 10
 
+	// if we only have 1 arg no site provided
 	if len(args) == 1 {
-		fmt.Println("no website provided")
+		log.Println("no website provided")
 		os.Exit(1)
 	}
 
+	// if we have more args then 4 we have an issue
 	if len(args) > 4 {
-		fmt.Println("too many arguments provided")
+		log.Println("too many arguments provided")
 		os.Exit(1)
 	}
 
+	// fetch baseurl from args and parse
 	baseUrl, err := url.Parse(os.Args[1])
 	if err != nil {
-		fmt.Println("error parsing url:", os.Args[1])
+		log.Println("error parsing url:", os.Args[1])
+		os.Exit(1)
 	}
 
+	// fetch maxConcurrency and maxPages from our args
 	if len(args) > 2 {
 		fmt.Sscanf(args[2], "%d", &maxConcurrency)
 	}
@@ -48,6 +72,7 @@ func main() {
 		fmt.Sscanf(args[3], "%d", &maxPages)
 	}
 
+	// stores our app configuration
 	cfg := config{
 		pages:              map[string]int{},
 		baseUrl:            baseUrl,
@@ -57,14 +82,16 @@ func main() {
 		maxPages:           maxPages,
 	}
 
+	// Add waitgroup and kick off crawling
 	cfg.wg.Add(1)
 	go cfg.crawlPage(baseUrl.String())
 	cfg.wg.Wait()
 
+	// Print the final report
 	printReport(cfg.pages, cfg.baseUrl.String())
 }
 
-// fetch a URL and returns the html content as a string
+// Fetch a URL and returns the html content as a string
 func getHTML(rawURL string) (string, error) {
 	if rawURL == "" {
 		return "", fmt.Errorf("no url")
@@ -90,10 +117,10 @@ func getHTML(rawURL string) (string, error) {
 	return string(bytes), nil
 }
 
-// recursively crawls a page getting urls from page and incrementing if we found existing
+// Recursively crawls a page getting urls from page and incrementing if we found existing
 func (cfg *config) crawlPage(currentURL string) {
 	defer cfg.wg.Done()
-	cfg.concurrencyControl <- struct{}{} // aquire a spot
+	cfg.concurrencyControl <- struct{}{} // send a struct into concurrencyControl
 
 	if cfg.checkMapCount() > cfg.maxPages {
 		<-cfg.concurrencyControl // release spot
@@ -102,9 +129,10 @@ func (cfg *config) crawlPage(currentURL string) {
 
 	fmt.Printf("crawling: %s\n", currentURL)
 
+	// Parse current url
 	parsedCurrentURL, err := url.Parse(currentURL)
 	if err != nil {
-		<-cfg.concurrencyControl // release spot
+		<-cfg.concurrencyControl // release spot and return
 		return
 	}
 
@@ -117,16 +145,15 @@ func (cfg *config) crawlPage(currentURL string) {
 		return
 	}
 
-	// normalize the currentURL
+	// Normalize the currentURL
 	normalizedCurrentURL, err := normalizeURL(currentURL)
 	if err != nil {
 		<-cfg.concurrencyControl // release spot
 		return
 	}
 
-	// if this is the first time we have visited this page, get the html and start again
+	// If this is the first time we have visited this page, get the html and start again
 	if cfg.addPageVisit(normalizedCurrentURL) {
-		// we have not crawled the page, so fetch html
 		html, err := getHTML(currentURL)
 		if err != nil {
 			<-cfg.concurrencyControl // release spot
@@ -151,31 +178,32 @@ func (cfg *config) crawlPage(currentURL string) {
 
 }
 
-// check if the normalized url is in our map, if not add it, if so increment the count
+// Check if the normalized url is in our map, if not add it, if so increment the count
 func (c *config) addPageVisit(normalizedUrl string) (isFirst bool) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	// if we did not find the entry in our map, this is the first time we have seen this page
 	if _, ok := c.pages[normalizedUrl]; !ok {
 		isFirst = true
 		c.pages[normalizedUrl] = 1
-		c.mu.Unlock()
 		return isFirst
 	}
 
 	isFirst = false
 	c.pages[normalizedUrl]++
-	c.mu.Unlock()
 	return isFirst
 }
 
-// retuns the size of our map
+// Retuns the size of our map
 func (c *config) checkMapCount() int {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	mapSize := len(c.pages)
-	c.mu.Unlock()
 	return mapSize
 }
 
+// Prints our final report - calls sorting method for pages
 func printReport(pages map[string]int, baseURL string) {
 	fmt.Println("=============================")
 	fmt.Printf("REPORT for %s\n", baseURL)
@@ -187,21 +215,15 @@ func printReport(pages map[string]int, baseURL string) {
 	}
 }
 
-// helper for sort
-type kv struct {
-	key string
-	val int
-}
-
-// sorts map and returns slice of key val structs
+// Sorts map and returns slice of key val structs
 func sortMap(p map[string]int) []kv {
 	ss := []kv{}
 	for k, v := range p {
 		ss = append(ss, kv{k, v})
 	}
-	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].val > ss[j].val
-	})
+
+	sort.Sort(byVal(ss))
+	//sort.Stable(byKey(ss))
 
 	return ss
 }
