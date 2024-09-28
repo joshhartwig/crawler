@@ -36,4 +36,4 @@ The parameter order is
 
 ## Note
 
-Running this on a large site will almost certainly get you rate limited, especially if you set the parameters high.
+Running this on a large site will almost certainly get you rate limited, especially if you set the parameters high. Also, this will NOT crawl beyond the base domain supplied. This was a requirement for the project I worked on, but this is easily changed.
